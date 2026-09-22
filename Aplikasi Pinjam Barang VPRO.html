@@ -1,0 +1,277 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Sistem Peminjaman & Pengembalian Alat</title>
+  <!-- Tailwind CSS CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- HTML5-QRCode Library CDN -->
+  <script src="https://unpkg.com/html5-qrcode" type="text/javascript"></script>
+</head>
+<body class="bg-slate-100 min-h-screen font-sans text-slate-800">
+  <div class="max-w-md mx-auto p-4 sm:p-6">
+    <!-- Header Card -->
+    <div class="bg-white rounded-2xl shadow-sm p-6 mb-4 text-center border border-slate-200">
+      <h1 class="text-xl font-bold text-slate-900">Pencatatan Alat Kerja</h1>
+      <p class="text-xs text-slate-500 mt-1">Peminjaman & Pengembalian Inventaris</p>
+      
+      <!-- Tab Switcher -->
+      <div class="flex bg-slate-100 p-1 rounded-xl mt-5 border border-slate-200">
+        <button id="tabPinjamBtn" onclick="switchTab('pinjam')" class="flex-1 py-2 text-sm font-semibold rounded-lg bg-white text-blue-600 shadow-sm transition-all">
+          Pinjam
+        </button>
+        <button id="tabKembaliBtn" onclick="switchTab('kembali')" class="flex-1 py-2 text-sm font-semibold rounded-lg text-slate-600 hover:text-slate-900 transition-all">
+          Kembalikan
+        </button>
+      </div>
+    </div>
+
+    <!-- Main Card -->
+    <div class="bg-white rounded-2xl shadow-sm p-6 border border-slate-200">
+      <!-- Section Barcode Scanner -->
+      <div class="mb-6">
+        <label class="block text-xs font-semibold uppercase tracking-wider text-slate-500 mb-2">Pemindai Barcode</label>
+        <div id="reader" class="overflow-hidden rounded-xl bg-slate-50 border border-dashed border-slate-300 hidden mb-3"></div>
+        <button id="scanBtn" type="button" onclick="toggleScanner()" class="w-full py-2.5 px-4 bg-slate-800 hover:bg-slate-900 text-white font-medium text-sm rounded-xl transition-all flex items-center justify-center gap-2">
+          <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v1m6 11h2m-6 0h-2v4m0-11v3m0 0h.01M12 12h4.01M16 20h4M4 12h4m12 0h.01M5 8h2a1 1 0 001-1V5a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1zm12 0h2a1 1 0 001-1V5a1 1 0 00-1-1h-2a1 1 0 00-1 1v2a1 1 0 001 1zM5 20h2a1 1 0 001-1v-2a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1z" />
+          </svg>
+          <span id="scanBtnText">Buka Kamera Scan</span>
+        </button>
+      </div>
+
+      <!-- Alert Notification Box -->
+      <div id="alertBox" class="hidden mb-5 p-3.5 rounded-xl text-xs font-medium"></div>
+
+      <!-- FORM PEMINJAMAN -->
+      <form id="formPinjam" onsubmit="handlePinjamSubmit(event)" class="space-y-4">
+        <div>
+          <label class="block text-xs font-medium text-slate-600 mb-1">ID / Barcode Barang</label>
+          <input type="text" id="pinjamIdBarang" required oninput="triggerCheckStok()" placeholder="Scan atau ketik kode barang..." class="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-300 rounded-xl text-sm focus:bg-white focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all">
+          <div id="stokStatusBox" class="mt-2 text-xs font-medium hidden"></div>
+        </div>
+
+        <div>
+          <label class="block text-xs font-medium text-slate-600 mb-1">Nama Peminjam</label>
+          <input type="text" id="pinjamNama" required placeholder="Nama lengkap Anda" class="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-300 rounded-xl text-sm focus:bg-white focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all">
+        </div>
+
+        <div>
+          <label class="block text-xs font-medium text-slate-600 mb-1">Email Peminjam</label>
+          <input type="email" id="pinjamEmail" required placeholder="contoh@email.com" class="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-300 rounded-xl text-sm focus:bg-white focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all">
+        </div>
+
+        <div>
+          <label class="block text-xs font-medium text-slate-600 mb-1">Tanggal Pengembalian</label>
+          <input type="date" id="pinjamTglKembali" required class="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-300 rounded-xl text-sm focus:bg-white focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all">
+        </div>
+
+        <button type="submit" id="submitPinjamBtn" class="w-full mt-2 py-3 bg-blue-600 hover:bg-blue-700 disabled:bg-slate-300 text-white font-semibold text-sm rounded-xl transition-all shadow-sm">
+          Submit Peminjaman
+        </button>
+      </form>
+
+      <!-- FORM PENGEMBALIAN -->
+      <form id="formKembali" onsubmit="handleKembaliSubmit(event)" class="space-y-4 hidden">
+        <div>
+          <label class="block text-xs font-medium text-slate-600 mb-1">ID / Barcode Barang yang Dikembalikan</label>
+          <input type="text" id="kembaliIdBarang" required placeholder="Scan atau ketik kode barang..." class="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-300 rounded-xl text-sm focus:bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500 transition-all">
+        </div>
+
+        <p class="text-xs text-slate-500 bg-slate-50 p-3 rounded-xl border border-slate-200">
+          💡 Pastikan alat dalam kondisi baik. Setelah dikonfirmasi, status transaksi akan diperbarui dan stok alat otomatis bertambah.
+        </p>
+
+        <button type="submit" id="submitKembaliBtn" class="w-full mt-2 py-3 bg-emerald-600 hover:bg-emerald-700 disabled:bg-slate-300 text-white font-semibold text-sm rounded-xl transition-all shadow-sm">
+          Konfirmasi Pengembalian
+        </button>
+      </form>
+    </div>
+  </div>
+
+  <script>
+    let currentMode = 'pinjam';
+    let html5QrcodeScanner = null;
+    let isScannerActive = false;
+    let checkStokTimeout = null;
+
+    // Set batas tanggal minimum pengembalian ke hari ini
+    document.getElementById('pinjamTglKembali').min = new Date().toISOString().split('T')[0];
+
+    function switchTab(mode) {
+      currentMode = mode;
+      const tabPinjamBtn = document.getElementById('tabPinjamBtn');
+      const tabKembaliBtn = document.getElementById('tabKembaliBtn');
+      const formPinjam = document.getElementById('formPinjam');
+      const formKembali = document.getElementById('formKembali');
+
+      hideAlert();
+
+      if (mode === 'pinjam') {
+        tabPinjamBtn.className = 'flex-1 py-2 text-sm font-semibold rounded-lg bg-white text-blue-600 shadow-sm transition-all';
+        tabKembaliBtn.className = 'flex-1 py-2 text-sm font-semibold rounded-lg text-slate-600 hover:text-slate-900 transition-all';
+        formPinjam.classList.remove('hidden');
+        formKembali.classList.add('hidden');
+      } else {
+        tabKembaliBtn.className = 'flex-1 py-2 text-sm font-semibold rounded-lg bg-white text-emerald-600 shadow-sm transition-all';
+        tabPinjamBtn.className = 'flex-1 py-2 text-sm font-semibold rounded-lg text-slate-600 hover:text-slate-900 transition-all';
+        formKembali.classList.remove('hidden');
+        formPinjam.classList.add('hidden');
+      }
+    }
+
+    function toggleScanner() {
+      const readerEl = document.getElementById('reader');
+      const scanBtnText = document.getElementById('scanBtnText');
+
+      if (isScannerActive) {
+        stopScanner();
+      } else {
+        readerEl.classList.remove('hidden');
+        scanBtnText.innerText = 'Tutup Kamera';
+        isScannerActive = true;
+
+        html5QrcodeScanner = new Html5QrcodeScanner("reader", { 
+          fps: 10, 
+          qrbox: { width: 220, height: 150 },
+          aspectRatio: 1.0
+        });
+
+        html5QrcodeScanner.render(onScanSuccess, onScanFailure);
+      }
+    }
+
+    function stopScanner() {
+      if (html5QrcodeScanner) {
+        html5QrcodeScanner.clear().then(() => {
+          document.getElementById('reader').classList.add('hidden');
+          document.getElementById('scanBtnText').innerText = 'Buka Kamera Scan';
+          isScannerActive = false;
+        }).catch(err => console.error(err));
+      }
+    }
+
+    function onScanSuccess(decodedText) {
+      if (currentMode === 'pinjam') {
+        document.getElementById('pinjamIdBarang').value = decodedText;
+        triggerCheckStok();
+      } else {
+        document.getElementById('kembaliIdBarang').value = decodedText;
+      }
+      stopScanner();
+    }
+
+    function onScanFailure(error) {
+      // Pembacaan per-frame (abaikan jika belum fokus)
+    }
+
+    // Pengecekan stok real-time (dengan jeda/debounce 500ms)
+    function triggerCheckStok() {
+      clearTimeout(checkStokTimeout);
+      const idBarang = document.getElementById('pinjamIdBarang').value.trim();
+      const statusBox = document.getElementById('stokStatusBox');
+      const submitBtn = document.getElementById('submitPinjamBtn');
+
+      if (!idBarang) {
+        statusBox.classList.add('hidden');
+        submitBtn.disabled = false;
+        return;
+      }
+
+      statusBox.classList.remove('hidden');
+      statusBox.className = "mt-2 text-xs font-medium text-slate-500 animate-pulse";
+      statusBox.innerText = "⏳ Memeriksa ketersediaan stok...";
+
+      checkStokTimeout = setTimeout(() => {
+        if (typeof google !== 'undefined' && google.script && google.script.run) {
+          google.script.run.withSuccessHandler((res) => {
+            if (res.success) {
+              if (res.stokTersedia > 0) {
+                statusBox.className = "mt-2 text-xs font-medium text-emerald-600 bg-emerald-50 p-2.5 rounded-lg border border-emerald-200";
+                statusBox.innerText = `✓ ${res.namaBarang} (Stok Tersedia: ${res.stokTersedia})`;
+                submitBtn.disabled = false;
+              } else {
+                statusBox.className = "mt-2 text-xs font-medium text-rose-600 bg-rose-50 p-2.5 rounded-lg border border-rose-200";
+                statusBox.innerText = `✕ ${res.namaBarang} - STOK HABIS!`;
+                submitBtn.disabled = true;
+              }
+            } else {
+              statusBox.className = "mt-2 text-xs font-medium text-rose-600 bg-rose-50 p-2.5 rounded-lg border border-rose-200";
+              statusBox.innerText = `✕ ${res.message}`;
+              submitBtn.disabled = true;
+            }
+          }).cekStokBarang(idBarang);
+        }
+      }, 500);
+    }
+
+    function handlePinjamSubmit(e) {
+      e.preventDefault();
+      const submitBtn = document.getElementById('submitPinjamBtn');
+      submitBtn.disabled = true;
+      submitBtn.innerText = 'Memproses...';
+
+      const payload = {
+        idBarang: document.getElementById('pinjamIdBarang').value,
+        nama: document.getElementById('pinjamNama').value,
+        email: document.getElementById('pinjamEmail').value,
+        tglKembali: document.getElementById('pinjamTglKembali').value
+      };
+
+      if (typeof google !== 'undefined' && google.script && google.script.run) {
+        google.script.run.withSuccessHandler((res) => {
+          submitBtn.disabled = false;
+          submitBtn.innerText = 'Submit Peminjaman';
+
+          if (res.success) {
+            showAlert('success', res.message);
+            document.getElementById('formPinjam').reset();
+            document.getElementById('stokStatusBox').classList.add('hidden');
+          } else {
+            showAlert('error', res.message);
+          }
+        }).prosesPeminjaman(payload);
+      }
+    }
+
+    function handleKembaliSubmit(e) {
+      e.preventDefault();
+      const submitBtn = document.getElementById('submitKembaliBtn');
+      submitBtn.disabled = true;
+      submitBtn.innerText = 'Memproses...';
+
+      const idBarang = document.getElementById('kembaliIdBarang').value;
+
+      if (typeof google !== 'undefined' && google.script && google.script.run) {
+        google.script.run.withSuccessHandler((res) => {
+          submitBtn.disabled = false;
+          submitBtn.innerText = 'Konfirmasi Pengembalian';
+
+          if (res.success) {
+            showAlert('success', res.message);
+            document.getElementById('formKembali').reset();
+          } else {
+            showAlert('error', res.message);
+          }
+        }).prosesPengembalian(idBarang);
+      }
+    }
+
+    function showAlert(type, message) {
+      const alertBox = document.getElementById('alertBox');
+      alertBox.classList.remove('hidden');
+      if (type === 'success') {
+        alertBox.className = 'mb-5 p-3.5 rounded-xl text-xs font-medium bg-emerald-50 text-emerald-700 border border-emerald-200';
+      } else {
+        alertBox.className = 'mb-5 p-3.5 rounded-xl text-xs font-medium bg-rose-50 text-rose-700 border border-rose-200';
+      }
+      alertBox.innerText = message;
+    }
+
+    function hideAlert() {
+      document.getElementById('alertBox').classList.add('hidden');
+    }
+  </script>
+</body>
+</html>
